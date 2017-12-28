@@ -41,17 +41,32 @@ class circleMatrix:
         self.intensityMatrix = np.zeros((diameter, diameter))
 
     def calcGamma(self):
-        gammaDic = {}
+        gamma = {}
         for tissue in self.mu.keys():
-            gamma = self.mu[tissue] * self.rho[tissue]
-            gammaDic.update({tissue: gamma})
-        return gammaDic
+            tissueGamma = self.mu[tissue] * self.rho[tissue]
+            gamma.update({tissue: tissueGamma})
+        return gamma
+
+    def polarToX(self,theta):
+        return self.radius * math.cos(theta)
+
+    def polarToY(self, theta):
+        return self.radius * math.sin(theta)
+
+    def yToTheta(self, y):
+        return math.asin((y / self.radius))
+
+    def calcIntensity(self, x, Io, tissue):
+        return Io * math.exp((-1 * self.gamma[tissue]) * x)
 
     def calcIntermediateSlope(self, initX, initY, finX, finY):
         delaX = finX - initX
         deltaY = finY - initY
         slope = deltaY / delaX
         return slope
+
+    def calcNextSegmentLength(self, currLength, distance):
+        return None
 
     def populateMatrix(self):
         return None
