@@ -80,7 +80,7 @@ class circleMatrix:
         halfLength = self.polarToX(theta)
         return halfLength * 2
 
-    def populateMatrixTopHemisphere(self):
+    def populateMatrixBottomHemisphere(self):
         temp = np.zeros((self.diameter, self.diameter))
         topHemishpere = np.zeros((self.diameter, self.diameter))
         keys = []
@@ -107,7 +107,7 @@ class circleMatrix:
         return topHemishpere
 
     def populateMatrix(self):
-        bottomHemisphere = self.populateMatrixTopHemisphere()
+        bottomHemisphere = self.populateMatrixBottomHemisphere()
         for height in range(int(self.radius), int(self.diameter)):
             self.intensityMatrix[height][:] = bottomHemisphere[int(height-self.radius)][:]
 
