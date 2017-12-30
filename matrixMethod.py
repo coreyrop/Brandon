@@ -1,12 +1,17 @@
 import math as math
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
+from decimal import getcontext, Decimal
 
 class circleMatrix:
 
-    def __init__(self, diameter, depth):
+    def __init__(self, diameter, precisionDepth, precisionIntensity):
 
-        self.diameter = diameter
-        self.radius = diameter/2
+        getcontext().prec = precisionIntensity
+        self.diameter = diameter * (10 * precisionDepth)
+        self.radius = self.diameter/2
         self.doseData150KVP = {00.0: 1,
                                4.10: .996,
                                7.00: .992,
@@ -47,8 +52,9 @@ class circleMatrix:
         self.rho = {'water': 1.0, 'muscle': 1.1, 'fat': 0.9, 'bone': 2.3}
         self.gamma = self.calcGamma()
 
-        self.intensityMatrix = np.zeros((diameter, diameter))
+        self.intensityMatrix = np.zeros((self.diameter, self.diameter))
         self.populateMatrix()
+        self.rotateMatrixSummation()
 
     def calcGamma(self):
         gamma = {}
@@ -57,17 +63,22 @@ class circleMatrix:
             gamma.update({tissue: tissueGamma})
         return gamma
 
-    def polarToX(self, theta):
-        return self.radius * math.cos(theta)
+    def polarToX(self, r, theta):
+        return r * math.cos(theta)
 
-    def polarToY(self, theta):
-        return self.radius * math.sin(theta)
+    def polarToY(self, r, theta):
+        return r * math.sin(theta)
 
-    def yToTheta(self, y):
-        return math.asin((y / self.radius))
+    def thetaFromYR(self, y, r):
+        if r == 0 or y == 0:
+            return 0
+        return math.asin((y / r))
+
+    def radiusFromXY(self, x, y):
+        return math.sqrt((x**2) + (y**2))
 
     def calcIntensity(self, depth, initI, tissue):
-        return initI * math.exp((-1 * self.gamma[tissue]) * depth)
+        return  Decimal(initI * math.exp((-1 * self.gamma[tissue]) * depth)) / Decimal(1)
 
     def calcIntermediateSlope(self, initX, initY, finX, finY):
         deltaX = finX - initX
@@ -76,13 +87,13 @@ class circleMatrix:
         return slope
 
     def calcNextSegmentLength(self, y):
-        theta = self.yToTheta(y)
-        halfLength = self.polarToX(theta)
+        theta = self.thetaFromYR(y, self.radius)
+        halfLength = self.polarToX(self.radius, theta)
         return halfLength * 2
 
     def populateMatrixBottomHemisphere(self):
         temp = np.zeros((self.diameter, self.diameter))
-        topHemishpere = np.zeros((self.diameter, self.diameter))
+        bottomHemishpere = np.zeros((self.diameter, self.diameter))
         keys = []
         for key in self.doseData150KVP.keys():
             keys.append(key)
@@ -103,8 +114,8 @@ class circleMatrix:
                                                               keys[currentMaxXIndex], self.doseData150KVP[keys[currentMaxXIndex]])
                 initI = self.doseData150KVP[keys[currentMinXIndex]] + (currentSlope * (depth - keys[currentMinXIndex]))
                 temp[height][depth] = initI
-                topHemishpere[height][depth] = self.calcIntensity(depth, initI, 'water')
-        return topHemishpere
+                bottomHemishpere[height][depth] = self.calcIntensity(depth, initI, 'water')
+        return bottomHemishpere
 
     def populateMatrix(self):
         bottomHemisphere = self.populateMatrixBottomHemisphere()
@@ -116,10 +127,76 @@ class circleMatrix:
 
         print('yay')
 
+    def rotateMatrixSummation(self):
+        rotationMatrix = self.intensityMatrix.copy()
+        for deltaTheta in range(1, 360):
+
+            for height in range(int(self.diameter)):
+                y = self.radius - height
+
+                for depth in range(int(self.diameter)):
+                    x = depth - self.radius
+                    r = self.radiusFromXY(x, y)
+                    theta = self.thetaFromYR(y, r)
+                    newX = self.polarToX(r, (theta + deltaTheta))
+                    newY = self.polarToY(r, (theta + deltaTheta)) 
+                    if newX >= self.diameter:
+                        newX = self.diameter-1
+                    if newY >= self.diameter:
+                        newY = self.diameter-1
+                    if r == 0:
+                        self.intensityMatrix[height][depth] += rotationMatrix[height][depth]
+                    else:
+                        self.intensityMatrix[height][depth] += rotationMatrix[int(newY)][int(newX)]
+
+
 if __name__ == '__main__':
-    cm = circleMatrix(100, 40)
-    # file = open('output.txt', 'w')
-    # for row in range(int(100)):
-    #     file.write(str(cm.intensityMatrix[row][:]))
-    # file.close()
+    circMatrx = circleMatrix(10, 1, 3)
+    print('yay')
+
+    # 2D plot of intensity vs. depth across diameter
+    ####################################################################################################################
+    # fig, ax = plt.subplots()
+    #
+    # depth = []
+    # intensity = circMatrx.intensityMatrix[int(circMatrx.radius)][:]
+    # for depthVal in range(circMatrx.diameter):
+    #     depth.append(depthVal)
+    #
+    # ax.plot(depth, intensity, 'k--', label='intensity as a function of depth')
+    # ax.set_xlabel('depth (mm)')
+    # ax.set_ylabel('intensity (% / 100)')
+    # legend = ax.legend(loc='upper right', shadow=True, fontsize='x-large')
+    # legend.get_frame().set_facecolor('#00FFCC')
+    # plt.show()
+    ####################################################################################################################
+
+    # 3D plot of intensity vs. depth
+    ####################################################################################################################
+    depth = [x for x in range(circMatrx.diameter)]
+    height = [y for y in range(circMatrx.diameter)]
+    intensity = circMatrx.intensityMatrix
+
+    depth, height = np.meshgrid(depth, height)
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.plot_surface(depth, height, intensity, rstride=1, cstride=1, cmap=cm.viridis)
+
+
+    plt.show()
+    ####################################################################################################################
+
+    # 3D plot example
+    ####################################################################################################################
+    # X = np.arange(-5, 5, 0.25)
+    # Y = np.arange(-5, 5, 0.25)
+    # X, Y = np.meshgrid(X, Y)
+    # R = np.sqrt(X ** 2 + Y ** 2)
+    # Z = np.sin(R)
+    #
+    # fig = plt.figure()
+    # ax = Axes3D(fig)
+    # ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap=cm.viridis)
+    #
+    # plt.show()
 
