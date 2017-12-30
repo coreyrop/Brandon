@@ -64,15 +64,25 @@ class circleMatrix:
         return gamma
 
     def polarToX(self, r, theta):
-        return r * math.cos(theta)
+        return r * math.cos(math.radians(theta))
 
     def polarToY(self, r, theta):
-        return r * math.sin(theta)
+        return r * math.sin(math.radians(theta))
 
     def thetaFromYR(self, y, r):
-        if r == 0 or y == 0:
+        if r == 0:
             return 0
-        return math.asin((y / r))
+        return math.degrees(math.asin((y / r)))
+
+    def thetaFromXR(self, x, r):
+        if r == 0:
+            return 0
+        return math.degrees(math.acos((x / r)))
+
+    def thetaFromXY(self, x, y):
+        if x == 0:
+            return 0
+        return math.degrees(math.atan2(y , x))
 
     def radiusFromXY(self, x, y):
         return math.sqrt((x**2) + (y**2))
@@ -86,8 +96,11 @@ class circleMatrix:
         slope = deltaY / deltaX
         return slope
 
-    def calcNextSegmentLength(self, y):
-        theta = self.thetaFromYR(y, self.radius)
+    def calcNextSegmentLength(self, height):
+        if height > self.radius:
+            heightPastRadius = height - self.radius
+            height = self.radius - heightPastRadius
+        theta = self.thetaFromYR(height, self.radius)
         halfLength = self.polarToX(self.radius, theta)
         return halfLength * 2
 
@@ -133,21 +146,34 @@ class circleMatrix:
 
             for height in range(int(self.diameter)):
                 y = self.radius - height
-
-                for depth in range(int(self.diameter)):
-                    x = depth - self.radius
+                maxDepth = self.calcNextSegmentLength(math.fabs(y))
+                halfMaxDepth = maxDepth / 2
+                startingX = (-1 * self.radius) + (self.radius - halfMaxDepth)
+                for depth in range(int(maxDepth)):
+                    x = startingX + depth
                     r = self.radiusFromXY(x, y)
-                    theta = self.thetaFromYR(y, r)
-                    newX = self.polarToX(r, (theta + deltaTheta))
-                    newY = self.polarToY(r, (theta + deltaTheta)) 
-                    if newX >= self.diameter:
-                        newX = self.diameter-1
-                    if newY >= self.diameter:
-                        newY = self.diameter-1
-                    if r == 0:
-                        self.intensityMatrix[height][depth] += rotationMatrix[height][depth]
-                    else:
-                        self.intensityMatrix[height][depth] += rotationMatrix[int(newY)][int(newX)]
+                    thetaxy = self.thetaFromXY(x, y)
+                    calcy = self.polarToY(r, thetaxy)
+                    calcx = self.polarToX(r, thetaxy)
+                    newTheta = thetaxy + deltaTheta
+                    newY = self.polarToY(r, newTheta)
+                    newX = self.polarToX(r, newTheta)
+                    newR = int(self.radiusFromXY(newX, newY))
+                    newMaxDepth = self.calcNextSegmentLength(math.fabs(newY))
+                    newHalfMaxDepth = newMaxDepth / 2
+                    newStartingX = (-1 * self.radius) + (self.radius - newHalfMaxDepth)
+                    deltaX = newX - (newStartingX + depth)
+                    deltaY = newY + y
+                    newDepth = int(depth + deltaX)
+                    newHeight = int(self.radius - newY)
+                    if newDepth >= self.diameter:
+                        newDepth = self.diameter-1
+                    if newHeight >= self.diameter:
+                        newHeight = self.diameter-1
+                    self.intensityMatrix[height][depth] = Decimal(self.intensityMatrix[height][depth]) + Decimal(rotationMatrix[newHeight][newDepth]) # with 3 sigfig precision
+                    # self.intensityMatrix[height][depth] += rotationMatrix[newHeight][newDepth]                                                        # with full precision
+        pass
+
 
 
 if __name__ == '__main__':
