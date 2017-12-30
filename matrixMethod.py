@@ -206,6 +206,9 @@ if __name__ == '__main__':
     depth, height = np.meshgrid(depth, height)
     fig = plt.figure()
     ax = Axes3D(fig)
+    ax.set_xlabel('depth (mm)')
+    ax.set_ylabel('height (mm)')
+    ax.set_zlabel('intensity (% / 100)')
     ax.plot_surface(depth, height, intensity, rstride=1, cstride=1, cmap=cm.viridis)
 
 
