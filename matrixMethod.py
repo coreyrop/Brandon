@@ -170,8 +170,8 @@ class circleMatrix:
                         newDepth = self.diameter-1
                     if newHeight >= self.diameter:
                         newHeight = self.diameter-1
-                    self.intensityMatrix[height][depth] = Decimal(self.intensityMatrix[height][depth]) + Decimal(rotationMatrix[newHeight][newDepth]) # with 3 sigfig precision
-                    # self.intensityMatrix[height][depth] += rotationMatrix[newHeight][newDepth]                                                        # with full precision
+                    # self.intensityMatrix[height][depth] = Decimal(self.intensityMatrix[height][depth]) + Decimal(rotationMatrix[newHeight][newDepth]) # with 3 sigfig precision
+                    self.intensityMatrix[height][depth] += rotationMatrix[newHeight][newDepth]                                                        # with full precision
         pass
 
 

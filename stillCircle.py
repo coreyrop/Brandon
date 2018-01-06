@@ -54,9 +54,10 @@ class circleMatrix:
         self.defaultTissue = 'water'
         self.boneRegion = { 'tissue': 'bone', 'xCenter': -30, 'yCenter': 20, 'radius': 15}
 
-        self.intensityMatrix = np.zeros((self.diameter, self.diameter))
-        # self.populateMatrix()
-        self.dun()
+        self.intensityMatrixStill = np.zeros((self.diameter, self.diameter))
+        self.intensityMatrixRotated = np.zeros((self.diameter, self.diameter))
+        self.populateStill()
+        self.populateRotation()
 
     def calcGamma(self):
         gamma = {}
@@ -117,7 +118,7 @@ class circleMatrix:
         else:
             return self.defaultTissue
 
-    def dun(self):
+    def populateStill(self):
         depths = []
         for key in self.doseData150KVP.keys():
             depths.append(key)
@@ -147,7 +148,44 @@ class circleMatrix:
                 if tissue is 'bone':
                     print('x: ' + str(x) + ' y: ' + str(y))
                 i = Decimal(self.calcIntensity(depth, surfaceTheta, initI, tissue)) / Decimal(1)
-                self.intensityMatrix[row][col] = i
+                self.intensityMatrixStill[row][col] = i
+
+        pass
+
+    def populateRotation(self):
+        depths = []
+        for key in self.doseData150KVP.keys():
+            depths.append(key)
+
+        for deltaTheta in range(360):
+            for row in range(int(self.diameter)):
+                currentMinIndex = 0
+                currentMaxIndex = 1
+                y = self.radius - row
+                for col in range(int(self.diameter)):
+                    x = self.radius - col
+                    resultantRadius = self.radiusFromXY(x,y)
+                    if resultantRadius > self.radius:
+                        continue
+                    theta = self.thetaFromXY(x, y)
+                    newTheta = theta + deltaTheta
+                    newY = self.polarToY(resultantRadius, newTheta)
+                    newX = self.polarToX(resultantRadius, newTheta)
+                    surfaceTheta = self.thetaFromYR(newY, self.radius)
+                    surfaceX = self.polarToX(self.radius, surfaceTheta)
+                    depth = surfaceX - newX
+                    while (depth > depths[currentMaxIndex] and currentMaxIndex < len(depths)):
+                        currentMinIndex = currentMaxIndex
+                        currentMaxIndex += 1
+
+                    slope = self.calcIntermediateSlope(depths[currentMinIndex], self.doseData150KVP[depths[currentMinIndex]],
+                                                       depths[currentMaxIndex], self.doseData150KVP[depths[currentMaxIndex]])
+
+                    initI = self.doseData150KVP[depths[currentMinIndex]] + (slope * (depth - depths[currentMinIndex]))
+                    tissue = self.defineTissue(x, y)
+
+                    i = Decimal(self.calcIntensity(depth, surfaceTheta, initI, tissue)) / Decimal(1)
+                    self.intensityMatrixRotated[row][col] = Decimal(self.intensityMatrixRotated[row][col]) + Decimal(i)
 
         pass
 
@@ -160,7 +198,7 @@ if __name__ == '__main__':
     # fig, ax = plt.subplots()
     #
     # depth = []
-    # intensity = circMatrx.intensityMatrix[int(circMatrx.radius)][:]
+    # intensity = circMatrx.intensityMatrixStill[int(circMatrx.radius)][:]
     # for depthVal in range(circMatrx.diameter):
     #     depth.append(depthVal)
     #
@@ -172,15 +210,35 @@ if __name__ == '__main__':
     # plt.show()
     ####################################################################################################################
 
-    # 3D plot of intensity vs. depth
+    # 3D plot of intensity vs. depth [still model]
     ####################################################################################################################
     depth = [x for x in range(circMatrx.diameter)]
     height = [y for y in range(circMatrx.diameter)]
-    intensity = circMatrx.intensityMatrix
+    intensity = circMatrx.intensityMatrixStill
 
     depth, height = np.meshgrid(depth, height)
     fig = plt.figure()
     ax = Axes3D(fig)
+    ax.set_title('Still model intensity plot')
+    ax.set_xlabel('depth (mm)')
+    ax.set_ylabel('height (mm)')
+    ax.set_zlabel('intensity (% / 100)')
+    ax.plot_surface(depth, height, intensity, rstride=1, cstride=1, cmap=cm.viridis)
+
+
+    plt.show()
+    ####################################################################################################################
+
+    # 3D plot of intensity vs. depth [rotated model]
+    ####################################################################################################################
+    depth = [x for x in range(circMatrx.diameter)]
+    height = [y for y in range(circMatrx.diameter)]
+    intensity = circMatrx.intensityMatrixRotated
+
+    depth, height = np.meshgrid(depth, height)
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.set_title('Rotation model intensity plot')
     ax.set_xlabel('depth (mm)')
     ax.set_ylabel('height (mm)')
     ax.set_zlabel('intensity (% / 100)')
