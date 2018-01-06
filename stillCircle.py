@@ -51,6 +51,8 @@ class circleMatrix:
         self.mu = {'water': .1505, 'muscle': .1492, 'fat': .1500, 'bone': .1480}
         self.rho = {'water': 1.0, 'muscle': 1.1, 'fat': 0.9, 'bone': 2.3}
         self.gamma = self.calcGamma()
+        self.defaultTissue = 'water'
+        self.boneRegion = { 'tissue': 'bone', 'xCenter': -30, 'yCenter': 20, 'radius': 15}
 
         self.intensityMatrix = np.zeros((self.diameter, self.diameter))
         # self.populateMatrix()
@@ -99,6 +101,22 @@ class circleMatrix:
         intensity = initI * posCos * gammaFactor * depth
         return intensity
 
+    def defineTissue(self, x, y):
+        xOffOrigin = self.boneRegion['xCenter']
+        yOffOrigin = self.boneRegion['yCenter']
+        regionRadius = self.boneRegion['radius']
+        if y > yOffOrigin + regionRadius or y < yOffOrigin - regionRadius:
+            return self.defaultTissue
+        relativeY = y - yOffOrigin
+        thetaInRegion = self.thetaFromYR(relativeY, regionRadius)
+        deltaXInRegion = self.polarToX(regionRadius, thetaInRegion)
+        minXInRegion = xOffOrigin - deltaXInRegion
+        maxXInRegion = xOffOrigin + deltaXInRegion
+        if x <= maxXInRegion and x >= minXInRegion:
+            return self.boneRegion['tissue']
+        else:
+            return self.defaultTissue
+
     def dun(self):
         depths = []
         for key in self.doseData150KVP.keys():
@@ -125,7 +143,10 @@ class circleMatrix:
                                                    depths[currentMaxIndex], self.doseData150KVP[depths[currentMaxIndex]])
 
                 initI = self.doseData150KVP[depths[currentMinIndex]] + (slope * (depth - depths[currentMinIndex]))
-                i = Decimal(self.calcIntensity(depth, surfaceTheta, initI, 'water')) / Decimal(1)
+                tissue = self.defineTissue(x, y)
+                if tissue is 'bone':
+                    print('x: ' + str(x) + ' y: ' + str(y))
+                i = Decimal(self.calcIntensity(depth, surfaceTheta, initI, tissue)) / Decimal(1)
                 self.intensityMatrix[row][col] = i
 
         pass
