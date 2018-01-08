@@ -56,8 +56,8 @@ class circleMatrix:
 
         self.intensityMatrixStill = np.zeros((self.diameter, self.diameter))
         self.intensityMatrixRotated = np.zeros((self.diameter, self.diameter))
-        self.populateStill()
-        self.populateRotation()
+        # self.populateStill()
+        # self.populateRotation()
 
     def calcGamma(self):
         gamma = {}
@@ -96,13 +96,13 @@ class circleMatrix:
         slope = deltaY / deltaX
         return slope
 
-    def calcIntensity(self, depth, theta, initI, tissue):
+    def calcInstantIntensity(self, depth, theta, initI, tissue):
         posCos = math.fabs(math.cos(math.radians(theta)))
         gammaFactor = math.exp((-1 * self.gamma[tissue]))
         intensity = initI * posCos * gammaFactor * depth
         return intensity
 
-    def defineTissue(self, x, y):
+    def determineTissue(self, x, y):
         xOffOrigin = self.boneRegion['xCenter']
         yOffOrigin = self.boneRegion['yCenter']
         regionRadius = self.boneRegion['radius']
@@ -117,6 +117,26 @@ class circleMatrix:
             return self.boneRegion['tissue']
         else:
             return self.defaultTissue
+
+    def determinePath(self, x, y):
+        path = []
+        r = self.radiusFromXY(x, y)
+        theta = self.thetaFromXY(x, y)
+        depth = 0
+        oldTissue = self.determineTissue(x, y)
+        newR = r + 1
+        while (newR <= self.radius):
+            newX = self.polarToX(newR, theta)
+            newY = self.polarToY(newR, theta)
+            depth += 1
+            newTissue = self.determineTissue(newX, newY)
+            if newTissue is not oldTissue:
+                path.append((oldTissue, depth))
+                depth = 0
+                oldTissue = newTissue
+            newR += 1
+        path.append((oldTissue, depth))
+        return path
 
     def populateStill(self):
         depths = []
@@ -144,10 +164,10 @@ class circleMatrix:
                                                    depths[currentMaxIndex], self.doseData150KVP[depths[currentMaxIndex]])
 
                 initI = self.doseData150KVP[depths[currentMinIndex]] + (slope * (depth - depths[currentMinIndex]))
-                tissue = self.defineTissue(x, y)
+                tissue = self.determineTissue(x, y)
                 if tissue is 'bone':
                     print('x: ' + str(x) + ' y: ' + str(y))
-                i = Decimal(self.calcIntensity(depth, surfaceTheta, initI, tissue)) / Decimal(1)
+                i = Decimal(self.calcInstantIntensity(depth, surfaceTheta, initI, tissue)) / Decimal(1)
                 self.intensityMatrixStill[row][col] = i
 
         pass
@@ -182,15 +202,16 @@ class circleMatrix:
                                                        depths[currentMaxIndex], self.doseData150KVP[depths[currentMaxIndex]])
 
                     initI = self.doseData150KVP[depths[currentMinIndex]] + (slope * (depth - depths[currentMinIndex]))
-                    tissue = self.defineTissue(x, y)
+                    tissue = self.determineTissue(x, y)
 
-                    i = Decimal(self.calcIntensity(depth, surfaceTheta, initI, tissue)) / Decimal(1)
+                    i = Decimal(self.calcInstantIntensity(depth, surfaceTheta, initI, tissue)) / Decimal(1)
                     self.intensityMatrixRotated[row][col] = Decimal(self.intensityMatrixRotated[row][col]) + Decimal(i)
 
         pass
 
 if __name__ == '__main__':
     circMatrx = circleMatrix(10, 1, 4)
+    path = circMatrx.determinePath(-30,10)
     print('yay')
 
     # 2D plot of intensity vs. depth across diameter
