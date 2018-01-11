@@ -1,3 +1,5 @@
+import pyprind as Pyprind
+import sys
 import math as math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -122,33 +124,41 @@ class circleMatrix:
         return Decimal(intensity) / Decimal(1)
 
     def populateStill(self):
+        totalCalculations = int(self.diameter) * int(self.diameter)
+        progressBar = Pyprind.ProgBar(totalCalculations, stream = sys.stdout, title = 'Populating Still figure: ' )
         for row in range(int(self.diameter)):
             y = self.radius - row
             for col in range(int(self.diameter)):
                 x = self.radius - col
                 r = self.radiusFromXY(x, y)
                 if r > self.radius:
+                    progressBar.update()
                     continue
                 surfaceTheta = self.surfaceTheta(y)
                 path = self.determinePath(x, y)
                 intensity = self.calcIntensityFromPath(path, surfaceTheta)
                 self.intensityMatrixStill[row][col] = intensity
+                progressBar.update()
 
         pass
     
     def populateRotation(self):
+        totalCalculations = int(self.diameter) * int(self.diameter) * 360
+        progressBar = Pyprind.ProgBar(totalCalculations, stream = sys.stdout, title = 'Populating Rotation figure: ')
         for row in range(int(self.diameter)):
             y = self.radius - row
             for col in range(int(self.diameter)):
                 x = self.radius - col
                 r = self.radiusFromXY(x, y)
                 if r > self.radius:
+                    progressBar.update()
                     continue
                 for deltaTheta in range(360):
                     surfaceTheta = self.surfaceTheta(y) + deltaTheta
                     path = self.determinePath(x, y, 1, deltaTheta)
                     intensity = self.calcIntensityFromPath(path, surfaceTheta)
                     self.intensityMatrixRotated[row][col] = Decimal(self.intensityMatrixRotated[row][col]) + Decimal(intensity)
+                    progressBar.update()
         pass
 
 
